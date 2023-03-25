@@ -1,0 +1,11 @@
+# Pacific-Gunner-Editor-Tools
+修改Pacific Gunner（新抢滩登陆2004）的工具
+
+目前有2个工具提供使用，需要Python运行：
+
+地图合并工具：
+将两个地图高度文件（.map格式）里的每个高度取最高且合并为一个文件，用法见贴吧：https://tieba.baidu.com/p/8314127794
+
+坐标读取工具：
+对move.dat内保存的所有关卡的舰艇、建筑和地图模型坐标数据进行分类以及可视化，颜色对应游戏内雷达显示的颜色（绿色为地图模型）。
+![pacificmove](https://user-images.githubusercontent.com/70968294/226758129-8c2cfd20-175e-4edf-9036-ed7b213f1123.png)
