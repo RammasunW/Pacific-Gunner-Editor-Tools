@@ -14,9 +14,20 @@ current_level = "L"
 cb = None
 cb_drawn = False
 cursor = None
-positions = []
-names = []
-colors = []
+
+entities = []
+'''
+Structure:
+        "level": "L69",
+        "name": "L69_xxx",
+        "type": "float" | "point",
+        "x": 2092.02,
+        "y": 0,
+        "z": -2474.88,
+        "angle_x": 0,
+        "angle_y": 22.5,
+        "angle_z": 0
+'''
 
 # -----------------------------
 # LOAD MAP
@@ -38,10 +49,8 @@ def load_map_file():
 # -----------------------------
 # LOAD ENTITIES
 # -----------------------------
-def load_entities(level_var):
-    global positions
-    global names
-    global colors
+def load_entities():
+    global entities
     # -----------------------------
     # READ ENTITY DATA
     # -----------------------------
@@ -51,52 +60,52 @@ def load_entities(level_var):
     pos_regex = r'vec3 pos = \((-?\d+\.?\d*), (-?\d+\.?\d*), (-?\d+\.?\d*)\)'
     ang_regex = r'vec3 ang = \((-?\d+\.?\d*), (-?\d+\.?\d*), (-?\d+\.?\d*)\)'
     name_regex = r'string name = "(\w+)"'
+    type_regex = r'string type = "(\w+)"'
+    level_regex = r'(L\d{2})'
 
-    positions = []
-    names = []
-    colors = []
+    for i in range(len(data_lines)-4):
+        name_match = re.search(name_regex, data_lines[i])
+        level_match = re.search(level_regex, data_lines[i])
+        type_match = re.search(type_regex, data_lines[i+1])
+        pos_match = re.search(pos_regex, data_lines[i+2])
+        ang_match = re.search(ang_regex, data_lines[i+3])
 
-    for i in range(len(data_lines)):
-        line = data_lines[i]
-        if level_var in line:
-            pos_match = re.search(pos_regex, data_lines[i+2])
-            ang_match = re.search(ang_regex, data_lines[i+3])
-            name_match = re.search(name_regex, data_lines[i])
+        if pos_match and name_match and ang_match:
+            
+            name = name_match.group(1)
+            if "_j_" in name: # Enemy
+                if "_P_" in name: # Enemy buildings
+                    color = 'yellow'
+                else: #Enemy ships
+                    color = 'orange'
+            # Friendly
+            elif "_E_" in name or "_e_" in name: # Terrain
+                color = 'green'
+            elif "_P_" in name: # Terrain
+                if "isle" in name or "bush" in name or "palm" in name or "brbwr" in name:
+                    color = 'green'
+                else: # Friendly buildings
+                    color = 'lightblue'
+            else: # Friendly ships
+                color = 'navy'
+            
+            entities.append({
+            "level": level_match.group(1) if level_match else "L00",
+            "name": name,
+            "type": type_match.group(1),
+            "x": float(pos_match.group(1)),
+            "y": float(pos_match.group(2)),
+            "z": float(pos_match.group(3)),
+            "angle_x": float(ang_match.group(1)),
+            "angle_y": float(ang_match.group(2)),
+            "angle_z": float(ang_match.group(3)),
+            "color": color
+            })
 
-            if pos_match and name_match and ang_match:
-                x = float(pos_match.group(1))
-                y = float(pos_match.group(2))
-                z = float(pos_match.group(3))
-                
-                angle_y = float(ang_match.group(2))
-                positions.append((x, y, z, angle_y))
-                names.append(name_match.group(1))
 
-    # ---- Extract coords ----
-    x_coords = [p[0] for p in positions]
-    y_coords = [p[1] for p in positions]
-    z_coords = [p[2] for p in positions]
-    angles = [p[3] for p in positions]
-
-    # ---- Assign colors ----
-
-    for name in names:
-        if "_j_" in name:
-            if "_P_" in name:
-                colors.append('yellow')
-            else:
-                colors.append('orange')
-        elif "_E_" in name or "_e_" in name:
-            colors.append('green')
-        elif "_P_" in name:
-            if "isle" in name or "bush" in name or "palm" in name or "brbwr" in name:
-                colors.append('green')
-            else:
-                colors.append('lightblue')
-        else:
-            colors.append('navy')
-
-    return x_coords, y_coords, z_coords, angles, names, colors
+def get_entities_for_level(level):
+    global entities
+    return [e for e in entities if e["level"] == level]
 
 # -----------------------------
 # UPDATE PLOT (KEY FUNCTION)
@@ -105,13 +114,23 @@ def update_plot(clear=True):
     global cb_drawn
     global cb
     global cursor
+    global entities
+    global current_level
     
     ax.clear()
 
     if current_map is None:
         return
+    
+    current_entities = get_entities_for_level(current_level)
+    
+    x_coords = [e["x"] for e in current_entities]
+    y_coords = [e["y"] for e in current_entities]
+    z_coords = [e["z"] for e in current_entities]
+    names    = [e["name"] for e in current_entities]
+    angles   = [e["angle_y"] for e in current_entities]
+    colors   = [e["color"] for e in current_entities]
 
-    x_coords, y_coords, z_coords, angles, names, colors = load_entities(current_level)
 
     # ---- contour ----
     norm = TwoSlopeNorm(
@@ -208,7 +227,8 @@ def update_plot(clear=True):
 # -----------------------------
 def change_level(val):
     global current_level
-    current_level = "L" if val == "0" else f"L{int(val):02d}"
+    val = val[:2]
+    current_level = "L" if val == "00" else f"L{int(val):02d}"
     update_plot()
 
 
@@ -275,11 +295,6 @@ def on_click(event):
     z = event.ydata
 
     y = get_entity_y(x, z, current_map)
-
-    '''positions.append((x, y, z, 0))
-    names.append("NEW_ENTITY")
-
-    update_plot(clear=False)'''
     print(f'The point on terrain is {x:.2f}, {y:.2f}, {z:.2f}')
 
 
@@ -292,15 +307,49 @@ def on_click(event):
 root = tk.Tk()
 root.title("Map Viewer")
 
+load_entities()
+
 # Load map button
 btn = tk.Button(root, text="Load Map", command=load_map_file)
 btn.pack()
 
 # Level dropdown
 level_var = tk.StringVar(root)
-level_var.set("0")
+level_var.set("Choose Level")
 
-dropdown = tk.OptionMenu(root, level_var, *[str(i) for i in range(0, 29)], command=change_level)
+menu_entries = [
+"00 - All",
+"01 - Aleutian",
+"02 - Alpha",
+"03 - Bonin",
+"04 - Xmas",
+"05 - Coral Sea",
+"06 - Corregidor",
+"07 - Espiritu Santo",
+"08 - Fiji",
+"09 - Formosa",
+"10 - Guadalcanal",
+"11 - Guam",
+"12 - Iwo Jima",
+"13 - Johnston",
+"14 - Kwajalein",
+"15 - Leyte Gulf",
+"16 - Marcus",
+"17 - Midway",
+"18 - New Guinea",
+"19 - North Pacific",
+"20 - Noumea",
+"21 - Okinawa",
+"22 - Pearl Harbor",
+"23 - Philippine Sea",
+"24 - Sansapor",
+"25 - Sierra Whiskey",
+"26 - Tahiti",
+"27 - Tarawa",
+"28 - Wake",
+]
+
+dropdown = tk.OptionMenu(root, level_var, *menu_entries, command=change_level)
 dropdown.pack()
 
 # -----------------------------
