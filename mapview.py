@@ -185,8 +185,8 @@ def update_plot(clear=True):
     scatter = ax.scatter(x_coords, z_coords, c=colors, s=80, edgecolors='black', linewidths=2)
     
     # ---- Entity Angles ----
-    dx = [np.cos(np.radians(a)) for a in angles]
-    dz = [np.sin(np.radians(a)) for a in angles]
+    dx = [np.sin(np.radians(a)) for a in angles]
+    dz = [np.cos(np.radians(a)) for a in angles]
 
     ax.quiver(
         x_coords,
@@ -217,7 +217,7 @@ def update_plot(clear=True):
     def on_add(sel):
         i = sel.index
         sel.annotation.set_text(
-            f'{names[i]}\n({x_coords[i]}, {y_coords[i]}, {z_coords[i]})'
+            f'{names[i]}\n({x_coords[i]}, {y_coords[i]}, {z_coords[i]}), {angles[i]}'
         )
 
 
