@@ -133,19 +133,18 @@ def update_plot(clear=True):
 
 
     # ---- contour ----
-    norm = TwoSlopeNorm(
-        vmin=current_map.min(),
-        vcenter=0,
-        vmax=current_map.max()
-    )
-
-    # ---- Levels (no duplicate 0) ----
-    levels = np.concatenate([
-        np.linspace(current_map.min(), 0, 10, endpoint=False),
-        np.linspace(0, current_map.max(), 10)
-    ])
-
-    cmap = LinearSegmentedColormap.from_list(
+    if current_map.min() == current_map.max():
+        norm = None
+        cmap = "Blues"
+        
+    else:
+        norm = TwoSlopeNorm(
+            vmin=current_map.min(),
+            vcenter=0,
+            vmax=current_map.max()
+        )
+        
+        cmap = LinearSegmentedColormap.from_list(
         "blue_green",
         [
             (0.0, "darkblue"),
@@ -154,6 +153,13 @@ def update_plot(clear=True):
             (1.0, "darkgreen")
         ]
     )
+
+    # ---- Levels (no duplicate 0) ----
+    levels = np.concatenate([
+        np.linspace(current_map.min(), 0, 10, endpoint=False),
+        np.linspace(0, current_map.max(), 10)
+    ])
+    levels = np.unique(levels)
     
     extent = [-5000, 5000, -5000, 5000]
 
@@ -198,13 +204,8 @@ def update_plot(clear=True):
     ax.set_title(f'Entities + Heightmap ({current_level})')
 
     # ---- Colorbar ----
-    if not cb_drawn:
-        cb = plt.colorbar(contour, ax=ax)
-        cb_drawn = True
-    else:
-        cb.update_normal(contour)
-        cb.norm = contour.norm
-        cb.update_ticks()
+    cax.clear()
+    cb = plt.colorbar(contour, cax=cax)
         
     # ---- Hover tool ----
     if cursor is not None:
@@ -356,6 +357,7 @@ dropdown.pack()
 # MATPLOTLIB FIGURE
 # -----------------------------
 fig, ax = plt.subplots()
+cax = fig.add_axes([0.88, 0.1, 0.03, 0.8])
 
 # Show plot in separate window
 plt.ion()  # interactive mode ON
