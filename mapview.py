@@ -5,6 +5,13 @@ import tkinter as tk
 from tkinter import filedialog
 import re
 import mplcursors
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+import sys
+
+def on_close():
+    root.quit()       # stop Tkinter loop
+    root.destroy()    # destroy window
+    sys.exit()        # kill Python process
 
 # -----------------------------
 # GLOBAL STATE
@@ -122,7 +129,7 @@ def update_plot(clear=True):
     if current_map is None:
         return
     
-    current_entities = get_entities_for_level(current_level)
+    current_entities = entities if current_level == "L" else get_entities_for_level(current_level)
     
     x_coords = [e["x"] for e in current_entities]
     y_coords = [e["y"] for e in current_entities]
@@ -221,7 +228,7 @@ def update_plot(clear=True):
         )
 
 
-    fig.canvas.draw()
+    canvas.draw()
 
 # -----------------------------
 # LEVEL CHANGE
@@ -311,7 +318,7 @@ root.title("Map Viewer")
 load_entities()
 
 # Load map button
-btn = tk.Button(root, text="Load Map", command=load_map_file)
+btn = tk.Button(root, text="Load Terrain (.map)", command=load_map_file)
 btn.pack()
 
 # Level dropdown
@@ -360,9 +367,15 @@ fig, ax = plt.subplots()
 cax = fig.add_axes([0.88, 0.1, 0.03, 0.8])
 
 # Show plot in separate window
-plt.ion()  # interactive mode ON
-plt.show()
-fig.canvas.mpl_connect("button_press_event", on_click)
+canvas = FigureCanvasTkAgg(fig, master=root)
+canvas_widget = canvas.get_tk_widget()
+canvas_widget.pack(fill=tk.BOTH, expand=True)
+canvas.mpl_connect("button_press_event", on_click)
+
+toolbar = NavigationToolbar2Tk(canvas, root)
+toolbar.update()
+toolbar.pack()
 
 # Run UI
+root.protocol("WM_DELETE_WINDOW", on_close)
 root.mainloop()
