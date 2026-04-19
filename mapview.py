@@ -21,6 +21,7 @@ current_level = "L"
 cb = None
 cb_drawn = False
 cursor = None
+level_val = 0
 
 
 menu_entries = [
@@ -53,6 +54,38 @@ menu_entries = [
 "26 - Tahiti",
 "27 - Tarawa",
 "28 - Wake",
+]
+
+level_names = [
+"All",
+"aleutian",
+"alpha",
+"bonin",
+"xmas",
+"coralsea",
+"corregidor",
+"santo",
+"fiji",
+"formosa",
+"guadalcanal",
+"guam",
+"iwojima",
+"johnston",
+"kwajalein",
+"leytegulf",
+"marcus",
+"midway",
+"newguinea",
+"npacific",
+"noumea",
+"okinawa",
+"pearl",
+"philippinesea",
+"sansapor",
+"whiskey",
+"tahiti",
+"tarawa",
+"wake",
 ]
 
 
@@ -248,7 +281,7 @@ def get_entities_for_level(level):
 # -----------------------------
 # UPDATE PLOT (KEY FUNCTION)
 # -----------------------------
-def update_plot(clear=True):
+def update_plot(clear=True, filter_by=None):
     global cb_drawn
     global cb
     global cursor
@@ -262,7 +295,10 @@ def update_plot(clear=True):
     if current_map is None:
         return
     
-    current_entities = entities if current_level == "L" else get_entities_for_level(current_level)
+    if filter_by is None:
+        current_entities = entities if current_level == "L" else get_entities_for_level(current_level)
+    else:
+        current_entities = [e for e in entities if filter_by in e["name"]]
     
     x_coords = [e["x"] for e in current_entities]
     y_coords = [e["y"] for e in current_entities]
@@ -386,7 +422,7 @@ def update_plot(clear=True):
     # ---- Labels ----
     ax.set_xlabel('X')
     ax.set_ylabel('Z')
-    ax.set_title(f'Entities + Heightmap ({current_level})')
+    ax.set_title(f'Entities + Heightmap ({current_level} {level_names[level_val]})')
 
     # ---- Colorbar ----
     cax.clear()
@@ -411,9 +447,18 @@ def update_plot(clear=True):
 # LEVEL CHANGE
 # -----------------------------
 def change_level(val):
-    global current_level
+    global level_val, level_name, current_map, current_level
     val = val[:2]
+    level_val = int(val)
     current_level = "L" if val == "00" else f"L{int(val):02d}"
+    
+    if current_level != "L":
+        # experimental: change everything in one button
+        level_name = level_names[level_val]
+        current_map = np.loadtxt("m\\area_" + level_name + ".map", comments="end:")
+        
+        load_paths_file("m\\pth_area_" + level_name + ".dat")
+    
     update_plot()
 
 
@@ -693,7 +738,7 @@ def on_path_select(selection):
 def load_paths_file_dialog():
     filename = filedialog.askopenfilename(
         title="Select paths file",
-        filetypes=[("Path files", "*.*")]
+        filetypes=[("Path files", "*.dat")]
     )
 
     if not filename:
@@ -702,6 +747,10 @@ def load_paths_file_dialog():
     load_paths_file(filename)  # your parser
     
     update_plot()
+
+
+def filter_move():
+    update_plot(filter_by=filter_entry.get())
 
 
 # -----------------------------
@@ -723,6 +772,13 @@ level_var.set("Choose Level")
 dropdown = tk.OptionMenu(control_frame, level_var, *menu_entries, command=change_level)
 dropdown.pack()
 
+# Filter move
+tk.Label(control_frame, text="Filter move by name").pack()
+filter_entry = tk.Entry(control_frame)
+filter_entry.pack()
+filter_btn = tk.Button(control_frame, text="Filter", command=filter_move)
+filter_btn.pack()
+
 menubar = tk.Menu(control_frame)
 mode_var = tk.StringVar(value="select")
 
@@ -736,10 +792,6 @@ path_spin = tk.Spinbox(control_frame, from_=-1, to=287,
                        command=lambda: on_path_select(int(path_spin.get())))
 path_spin.pack()
 
-tk.Button(control_frame, text="Save", command=save_entities).pack()
-
-tk.Button(control_frame, text="Edit", command=edit_selected).pack()
-
 tk.Label(control_frame, text="Editor Mode:").pack()
 
 tk.Radiobutton(control_frame, text="Select", variable=mode_var, value="select",
@@ -748,9 +800,12 @@ tk.Radiobutton(control_frame, text="Add", variable=mode_var, value="add",
                command=lambda: set_mode("add")).pack()
 tk.Radiobutton(control_frame, text="Delete", variable=mode_var, value="delete",
                command=lambda: set_mode("delete")).pack()
+tk.Button(control_frame, text="Edit Point", command=edit_selected).pack()
 
 coord_label = tk.Label(control_frame, text="X=0 Y=0 Z=0")
 coord_label.pack()
+
+tk.Button(control_frame, text="Save move.dat As...", command=save_entities).pack()
 
 root.config(menu=menubar)
 
@@ -760,7 +815,7 @@ load_entities()
 # MATPLOTLIB FIGURE
 # -----------------------------
 fig, ax = plt.subplots()
-cax = fig.add_axes([0.88, 0.1, 0.03, 0.8])
+cax = fig.add_axes([0.91, 0.1, 0.03, 0.8])
 
 # Show plot in separate window
 canvas = FigureCanvasTkAgg(fig, master=root)
